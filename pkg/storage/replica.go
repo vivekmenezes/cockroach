@@ -3104,9 +3104,7 @@ func (r *Replica) processRaftCommand(
 		log.Fatalf(ctx, "processRaftCommand requires a non-zero index")
 	}
 
-	if log.V(4) {
-		log.Infof(ctx, "processing command %x: maxLeaseIndex=%d", idKey, raftCmd.MaxLeaseIndex)
-	}
+	log.VEventf(ctx, 4, "processing command %x: maxLeaseIndex=%d", idKey, raftCmd.MaxLeaseIndex)
 
 	// TODO(bdarnell): the isConsistencyRelated field is insufficiently tested;
 	// no tests fail if it is always set to false.
@@ -3159,6 +3157,8 @@ func (r *Replica) processRaftCommand(
 		delete(r.mu.proposals, idKey)
 	}
 	leaseIndex := r.mu.state.LeaseAppliedIndex
+
+	log.VEventf(ctx, 4, "processing command %x: maxLeaseIndex=%d", idKey, raftCmd.MaxLeaseIndex)
 
 	var forcedErr *roachpb.Error
 	if idKey == "" {

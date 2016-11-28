@@ -1063,7 +1063,7 @@ func (ds *DistSender) sendToReplicas(
 
 	// Send the first request.
 	pending := 1
-	log.VEventf(opts.ctx, 2, "sending RPC for batch: %s", args.Summary())
+	log.Eventf(opts.ctx, "sending RPC for batch: %s", args.Summary())
 	transport.SendNext(done)
 
 	// Wait for completions. This loop will retry operations that fail
@@ -1077,6 +1077,7 @@ func (ds *DistSender) sendToReplicas(
 		case <-sendNextTimer.C:
 			sendNextTimer.Read = true
 			// On successive RPC timeouts, send to additional replicas if available.
+			log.VEventf(opts.ctx, 2, "timeout")
 			if !transport.IsExhausted() {
 				log.VEventf(opts.ctx, 2, "timeout, trying next peer")
 				pending++
@@ -1087,10 +1088,9 @@ func (ds *DistSender) sendToReplicas(
 			pending--
 			err := call.Err
 			if err == nil {
-				if log.V(2) {
-					log.Infof(opts.ctx, "RPC reply: %s", call.Reply)
-				} else if log.V(1) && call.Reply.Error != nil {
-					log.Infof(opts.ctx, "application error: %s", call.Reply.Error)
+				log.VEventf(opts.ctx, 2, "RPC reply: %s", call.Reply)
+				if call.Reply.Error != nil {
+					log.VEventf(opts.ctx, 1, "application error: %s", call.Reply.Error)
 				}
 
 				if call.Reply.Error == nil {
@@ -1117,9 +1117,9 @@ func (ds *DistSender) sendToReplicas(
 				// information than a RangeNotFound).
 				err = call.Reply.Error.GoError()
 			} else {
-				if log.V(1) {
-					log.Warningf(opts.ctx, "RPC error: %s", err)
-				}
+
+				log.VEventf(opts.ctx, 1, "RPC error: %s", err)
+
 				// All connection errors except for an unavailable node (this
 				// is GRPC's fail-fast error), may mean that the request
 				// succeeded on the remote server, but we were unable to
@@ -1160,9 +1160,9 @@ func (ds *DistSender) sendToReplicas(
 						fmt.Sprintf("sending to all %d replicas failed; last error: %v", len(replicas), err),
 					)
 				}
-				if log.V(2) {
-					log.ErrEvent(opts.ctx, err.Error())
-				}
+
+				log.VEvent(opts.ctx, 2, err.Error())
+
 				return nil, err
 			}
 		}

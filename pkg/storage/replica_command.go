@@ -33,6 +33,8 @@ import (
 
 	"github.com/coreos/etcd/raft/raftpb"
 	"github.com/gogo/protobuf/proto"
+	basictracer "github.com/opentracing/basictracer-go"
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 
@@ -49,6 +51,7 @@ import (
 	"github.com/cockroachdb/cockroach/pkg/util/protoutil"
 	"github.com/cockroachdb/cockroach/pkg/util/retry"
 	"github.com/cockroachdb/cockroach/pkg/util/timeutil"
+	"github.com/cockroachdb/cockroach/pkg/util/tracing"
 	"github.com/cockroachdb/cockroach/pkg/util/uuid"
 )
 
@@ -3255,6 +3258,15 @@ func (r *Replica) ChangeReplicas(
 
 	descKey := keys.RangeDescriptorKey(desc.StartKey)
 
+	var collectedSpans []basictracer.RawSpan
+	sp, err := tracing.JoinOrNewSnowball("coordinator", nil, func(sp basictracer.RawSpan) {
+		collectedSpans = append(collectedSpans, sp)
+	})
+	if err != nil {
+		log.Warningf(ctx, "unable to create snowball tracer: %s", err)
+		return err
+	}
+	ctx = opentracing.ContextWithSpan(ctx, sp)
 	if err := r.store.DB().Txn(ctx, func(txn *client.Txn) error {
 		log.Event(ctx, "attempting txn")
 		txn.Proto.Name = replicaChangeTxnName
@@ -3268,7 +3280,7 @@ func (r *Replica) ChangeReplicas(
 			return err
 		}
 		log.Infof(ctx, "change replicas: read existing descriptor %+v", oldDesc)
-
+		start := time.Now()
 		{
 			b := txn.NewBatch()
 
@@ -3282,6 +3294,7 @@ func (r *Replica) ChangeReplicas(
 			if err := txn.Run(b); err != nil {
 				return err
 			}
+			log.Infof(ctx, "range modified first %s", time.Since(start))
 		}
 
 		// Log replica change into range event log.
@@ -3314,18 +3327,24 @@ func (r *Replica) ChangeReplicas(
 			return err
 		}
 
+		log.Infof(ctx, "range modified second %s", time.Since(start))
 		if oldDesc.RangeID != 0 && !reflect.DeepEqual(oldDesc, desc) {
 			// We read the previous value, it wasn't what we supposedly used in
 			// the CPut, but we still overwrote in the CPut above.
 			panic(fmt.Sprintf("committed replica change, but oldDesc != assumedOldDesc:\n%+v\n%+v\nnew desc:\n%+v",
 				oldDesc, desc, updatedDesc))
 		}
+		collectedSpans = append(collectedSpans, txn.CollectedSpans...)
 		return nil
 	}); err != nil {
 		log.Event(ctx, err.Error())
 		return errors.Wrapf(err, "change replicas of range %d failed", rangeID)
 	}
 	log.Event(ctx, "txn complete")
+	sp.Finish()
+	sp = nil
+	dump := tracing.FormatRawSpans(collectedSpans)
+	log.Infof(context.TODO(), "ChangeReplicas trace:\n%s", dump)
 	return nil
 }
 

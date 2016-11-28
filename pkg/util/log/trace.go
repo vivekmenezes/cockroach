@@ -19,6 +19,7 @@ package log
 import (
 	"fmt"
 
+	"github.com/cockroachdb/cockroach/pkg/util/caller"
 	"github.com/cockroachdb/cockroach/pkg/util/syncutil"
 	opentracing "github.com/opentracing/opentracing-go"
 	"golang.org/x/net/context"
@@ -113,6 +114,8 @@ func eventInternal(ctx context.Context, isErr, withTags bool, format string, arg
 		}
 
 		var msg string
+		file, line, _ := caller.Lookup(2)
+		format = fmt.Sprintf("%s %d: ", file, line) + format
 		if !withTags && len(args) == 0 {
 			// Fast path for pre-formatted messages.
 			msg = format

@@ -196,9 +196,11 @@ func StartTestCluster(t testing.TB, nodes int, args base.TestClusterArgs) *TestC
 	// replication factor.
 	if args.ReplicationMode == base.ReplicationAuto && nodes >= 3 {
 		// TODO(vivek): This occasionally takes a few seconds #11212.
+		start := time.Now()
 		if err := tc.waitForFullReplication(); err != nil {
 			t.Fatal(err)
 		}
+		t.Logf("waited time %v", time.Since(start))
 	}
 	return tc
 }
@@ -546,6 +548,7 @@ func (tc *TestCluster) waitForFullReplication() error {
 
 	notReplicated := true
 	for r := retry.Start(opts); r.Next() && notReplicated; {
+		log.Infof(context.TODO(), "waiting for replication")
 		notReplicated = false
 		for _, s := range tc.Servers {
 			err := s.Stores().VisitStores(func(s *storage.Store) error {
@@ -564,7 +567,9 @@ func (tc *TestCluster) waitForFullReplication() error {
 				break
 			}
 		}
+		log.Infof(context.TODO(), "waiting for replication complete")
 	}
+	log.Infof(context.TODO(), "waiting for replication complete final")
 	return nil
 }
 

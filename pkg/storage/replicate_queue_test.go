@@ -109,6 +109,13 @@ func TestReplicateQueueRebalance(t *testing.T) {
 func TestReplicateQueueDownReplicate(t *testing.T) {
 	defer leaktest.AfterTest(t)()
 
+	// Set the gossip stores interval lower to speed up rebalancing. With the
+	// default of 5s we have to wait ~5s for the rebalancing to start.
+	defer func(v time.Duration) {
+		gossip.GossipStoresInterval = v
+	}(gossip.GossipStoresInterval)
+	gossip.GossipStoresInterval = 100 * time.Millisecond
+
 	const replicaCount = 3
 
 	tc := testcluster.StartTestCluster(t, replicaCount+2,

@@ -3328,7 +3328,7 @@ func (r *Replica) ChangeReplicas(
 		log.Event(ctx, err.Error())
 		return errors.Wrapf(err, "change replicas of range %d failed", rangeID)
 	}
-	log.Event(ctx, "txn complete")
+	log.Info(ctx, "txn complete")
 	return nil
 }
 

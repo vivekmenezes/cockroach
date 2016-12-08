@@ -405,6 +405,18 @@ func TestRebalance_3To5Small(t *testing.T) {
 	at.RunAndCleanup(ctx, t)
 }
 
+// TestRebalance3to5Medium tests rebalancing, starting with 3 nodes (each
+// containing 108 GiB of data) and growing to 5 nodes.
+func TestRebalance_3To5Medium(t *testing.T) {
+	at := allocatorTest{
+		StartNodes: 3,
+		EndNodes:   5,
+		StoreURL:   urlStore1m,
+		Prefix:     "rebal-3to5m",
+	}
+	at.RunAndCleanup(t)
+}
+
 // TestUpreplicate_1To3Medium tests up-replication, starting with 1 node
 // containing 108 GiB of data and growing to 3 nodes.
 func TestUpreplicate_1To3Medium(t *testing.T) {

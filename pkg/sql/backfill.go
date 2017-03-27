@@ -656,27 +656,43 @@ func (sc *SchemaChanger) distBackfill(
 			return err
 		}
 		log.VEventf(ctx, 2, "index backfill: process %+v spans", spans)
+
+		// Use a leased table descriptor for the backfill.
+		//
+		// TODO(vivek): remove need for a planner to acquire table leases.
+		var p *planner
+		var tableDesc *sqlbase.TableDescriptor
+		var plan physicalPlan
+		var nodeAddresses map[roachpb.NodeID]string
 		if err := sc.db.Txn(ctx, func(ctx context.Context, txn *client.Txn) error {
-			p := sc.makePlanner(txn)
-			// Use a leased table descriptor for the backfill.
-			defer p.releaseLeases(ctx)
-			tableDesc, err := sc.getTableLease(ctx, p, version)
-			if err != nil {
-				return err
-			}
-			recv := distSQLReceiver{}
+			// Create a planningCtx here because we need a transaction.
 			planCtx := sc.distSQLPlanner.NewPlanningCtx(ctx, txn)
-			plan, err := sc.distSQLPlanner.CreateBackfiller(
-				&planCtx, backfillType, *tableDesc, duration, chunkSize, spans,
-			)
-			if err != nil {
-				return err
+			p = sc.makePlanner(txn)
+			var otherErr error
+			if tableDesc, otherErr = sc.getTableLease(ctx, p, version); otherErr != nil {
+				return otherErr
 			}
-			if err := sc.distSQLPlanner.Run(&planCtx, nil, &plan, &recv); err != nil {
+			if plan, otherErr = sc.distSQLPlanner.CreateBackfiller(
+				&planCtx, backfillType, *tableDesc, duration, chunkSize, spans,
+			); otherErr != nil {
+				return otherErr
+			}
+			nodeAddresses = planCtx.nodeAddresses
+			return nil
+		}); err != nil {
+			p.releaseLeases(ctx)
+			return err
+		}
+
+		// Use a function only to ensure that releaseLeases is called.
+		if err := func() error {
+			defer p.releaseLeases(ctx)
+			recv := distSQLReceiver{}
+			if err := sc.distSQLPlanner.Run(ctx, nil, &plan, nodeAddresses, &recv); err != nil {
 				return err
 			}
 			return recv.err
-		}); err != nil {
+		}(); err != nil {
 			return err
 		}
 	}

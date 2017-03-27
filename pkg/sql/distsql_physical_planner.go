@@ -1295,7 +1295,7 @@ func (dsp *distSQLPlanner) PlanAndRun(
 		return err
 	}
 	dsp.FinalizePlan(&planCtx, &plan)
-	return dsp.Run(&planCtx, txn, &plan, recv)
+	return dsp.Run(planCtx.ctx, txn, &plan, planCtx.nodeAddresses, recv)
 }
 
 // FinalizePlan adds a final "result" stage if necessary and populates the
@@ -1333,10 +1333,12 @@ func (dsp *distSQLPlanner) FinalizePlan(planCtx *planningCtx, plan *physicalPlan
 // Note that errors that happen while actually running the flow are reported to
 // recv, not returned by this function.
 func (dsp *distSQLPlanner) Run(
-	planCtx *planningCtx, txn *client.Txn, plan *physicalPlan, recv *distSQLReceiver,
+	ctx context.Context,
+	txn *client.Txn,
+	plan *physicalPlan,
+	nodeAddresses map[roachpb.NodeID]string,
+	recv *distSQLReceiver,
 ) error {
-	ctx := planCtx.ctx
-
 	flows := plan.GenerateFlowSpecs()
 
 	if logPlanDiagram {
@@ -1373,7 +1375,7 @@ func (dsp *distSQLPlanner) Run(
 		if err := distsqlrun.SetFlowRequestTrace(ctx, &req); err != nil {
 			return err
 		}
-		conn, err := dsp.rpcContext.GRPCDial(planCtx.nodeAddresses[nodeID])
+		conn, err := dsp.rpcContext.GRPCDial(nodeAddresses[nodeID])
 		if err != nil {
 			return err
 		}

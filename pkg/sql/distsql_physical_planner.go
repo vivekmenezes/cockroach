@@ -1355,6 +1355,11 @@ func (dsp *distSQLPlanner) Run(
 	recv.resultToStreamColMap = plan.planToStreamColMap
 	thisNodeID := dsp.nodeDesc.NodeID
 
+	txnMsg := roachpb.Transaction{}
+	if txn != nil {
+		txnMsg = *txn.Proto()
+	}
+
 	// Start the flows on all other nodes.
 	for nodeID, flowSpec := range flows {
 		if nodeID == thisNodeID {
@@ -1362,7 +1367,7 @@ func (dsp *distSQLPlanner) Run(
 			continue
 		}
 		req := distsqlrun.SetupFlowRequest{
-			Txn:  *txn.Proto(),
+			Txn:  txnMsg,
 			Flow: flowSpec,
 		}
 		if err := distsqlrun.SetFlowRequestTrace(ctx, &req); err != nil {
@@ -1383,7 +1388,7 @@ func (dsp *distSQLPlanner) Run(
 		}
 	}
 	localReq := distsqlrun.SetupFlowRequest{
-		Txn:  *txn.Proto(),
+		Txn:  txnMsg,
 		Flow: flows[thisNodeID],
 	}
 	if err := distsqlrun.SetFlowRequestTrace(ctx, &localReq); err != nil {

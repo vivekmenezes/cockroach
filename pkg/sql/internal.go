@@ -43,9 +43,10 @@ var _ sqlutil.InternalExecutor = InternalExecutor{}
 func (ie InternalExecutor) ExecuteStatementInTransaction(
 	ctx context.Context, opName string, txn *client.Txn, statement string, qargs ...interface{},
 ) (int, error) {
-	p := makeInternalPlanner(opName, txn, security.RootUser, ie.LeaseManager.memMetrics)
+	p := makeInternalPlanner(
+		opName, txn, security.RootUser, ie.LeaseManager, ie.LeaseManager.memMetrics)
 	defer finishInternalPlanner(p)
-	p.session.leases.leaseMgr = ie.LeaseManager
+
 	return p.exec(ctx, statement, qargs...)
 }
 
@@ -55,9 +56,10 @@ func (ie InternalExecutor) ExecuteStatementInTransaction(
 func (ie InternalExecutor) QueryRowInTransaction(
 	ctx context.Context, opName string, txn *client.Txn, statement string, qargs ...interface{},
 ) (parser.Datums, error) {
-	p := makeInternalPlanner(opName, txn, security.RootUser, ie.LeaseManager.memMetrics)
+	p := makeInternalPlanner(
+		opName, txn, security.RootUser, ie.LeaseManager, ie.LeaseManager.memMetrics)
 	defer finishInternalPlanner(p)
-	p.session.leases.leaseMgr = ie.LeaseManager
+
 	return p.QueryRow(ctx, statement, qargs...)
 }
 
@@ -66,9 +68,9 @@ func (ie InternalExecutor) GetTableSpan(
 	ctx context.Context, user string, txn *client.Txn, dbName, tableName string,
 ) (roachpb.Span, error) {
 	// Lookup the table ID.
-	p := makeInternalPlanner("get-table-span", txn, user, ie.LeaseManager.memMetrics)
+	p := makeInternalPlanner(
+		"get-table-span", txn, user, ie.LeaseManager, ie.LeaseManager.memMetrics)
 	defer finishInternalPlanner(p)
-	p.session.leases.leaseMgr = ie.LeaseManager
 
 	tn := parser.TableName{DatabaseName: parser.Name(dbName), TableName: parser.Name(tableName)}
 	tableID, err := getTableID(ctx, p, &tn)

@@ -79,7 +79,7 @@ var noteworthyInternalMemoryUsageBytes = envutil.EnvOrDefaultInt64("COCKROACH_NO
 
 // makePlanner creates a new planner instance, referencing a dummy session.
 func makeInternalPlanner(
-	opName string, txn *client.Txn, user string, memMetrics *MemoryMetrics,
+	opName string, txn *client.Txn, user string, leaseMgr *LeaseManager, memMetrics *MemoryMetrics,
 ) *planner {
 	// init with an empty session. We can't leave this nil because too much code
 	// looks in the session for the current database.
@@ -90,7 +90,10 @@ func makeInternalPlanner(
 		User:     user,
 		TxnState: txnState{Ctx: ctx},
 		context:  ctx,
-		leases:   LeaseCollection{databaseCache: newDatabaseCache(config.SystemConfig{})},
+		leases: LeaseCollection{
+			databaseCache: newDatabaseCache(config.SystemConfig{}),
+			leaseMgr:      leaseMgr,
+		},
 	}
 
 	s.mon = mon.MakeUnlimitedMonitor(ctx,

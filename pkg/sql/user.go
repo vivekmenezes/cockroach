@@ -38,7 +38,7 @@ func GetUserHashedPassword(
 
 	var hashedPassword []byte
 	if err := executor.cfg.DB.Txn(ctx, func(ctx context.Context, txn *client.Txn) error {
-		p := makeInternalPlanner("get-pwd", txn, security.RootUser, metrics)
+		p := makeInternalPlanner("get-pwd", txn, security.RootUser, nil, metrics)
 		defer finishInternalPlanner(p)
 		const getHashedPassword = `SELECT hashedPassword FROM system.users ` +
 			`WHERE username=$1`

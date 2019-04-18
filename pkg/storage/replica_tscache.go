@@ -17,14 +17,15 @@ package storage
 import (
 	"context"
 	"fmt"
-
 	"github.com/cockroachdb/cockroach/pkg/keys"
 	"github.com/cockroachdb/cockroach/pkg/roachpb"
 	"github.com/cockroachdb/cockroach/pkg/storage/rditer"
 	"github.com/cockroachdb/cockroach/pkg/storage/tscache"
 	"github.com/cockroachdb/cockroach/pkg/util"
 	"github.com/cockroachdb/cockroach/pkg/util/hlc"
+	"github.com/cockroachdb/cockroach/pkg/util/log"
 	"github.com/cockroachdb/cockroach/pkg/util/uuid"
+	"runtime"
 )
 
 // setTimestampCacheLowWaterMark updates the low water mark of the timestamp
@@ -419,7 +420,7 @@ func (r *Replica) applyTimestampCache(
 // system.
 //
 func (r *Replica) CanCreateTxnRecord(
-	txnID uuid.UUID, txnKey []byte, txnMinTSUpperBound hlc.Timestamp,
+	txnID uuid.UUID, txnKey []byte, txnMinTSUpperBound, max hlc.Timestamp,
 ) (ok bool, minCommitTS hlc.Timestamp, reason roachpb.TransactionAbortedReason) {
 	// Consult the timestamp cache with the transaction's key. The timestamp
 	// cache is used in two ways for transactions without transaction records.
@@ -465,6 +466,9 @@ func (r *Replica) CanCreateTxnRecord(
 			// the timestamp cache recently bumped its low water mark, this case
 			// will be true for new txns, even if they're not a replay. We force
 			// these txns to retry.
+			var buf [2 << 10]byte
+			stk := string(buf[:runtime.Stack(buf[:], false)])
+			log.Infof(context.Background(), "cannot create txn: %+v, wTxnID: %+v, wTS %+v !< txnMinTSUpperBound %+v with max %+v\n%s", txnID, wTxnID, wTS, txnMinTSUpperBound, max, stk)
 			return false, minCommitTS, roachpb.ABORT_REASON_TIMESTAMP_CACHE_REJECTED_POSSIBLE_REPLAY
 		default:
 			// If we find another transaction's ID then that transaction has
@@ -474,6 +478,10 @@ func (r *Replica) CanCreateTxnRecord(
 			// from ever creating a transaction record.
 			return false, minCommitTS, roachpb.ABORT_REASON_ABORTED_RECORD_FOUND
 		}
+	} else {
+		//var buf [2 << 10]byte
+		//stk := string(buf[:runtime.Stack(buf[:], false)])
+		//log.Infof(context.Background(), "can create txn rec, wTS %+v < txnMinTSUpperBound %+v with max %+v\n%s", wTS, txnMinTSUpperBound, max, stk)
 	}
 	return true, minCommitTS, 0
 }

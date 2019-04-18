@@ -17,6 +17,7 @@ package sql
 import (
 	"context"
 	"fmt"
+	"github.com/cockroachdb/cockroach/pkg/roachpb"
 
 	"github.com/cockroachdb/cockroach/pkg/sql/pgwire/pgerror"
 	"github.com/cockroachdb/cockroach/pkg/sql/privilege"
@@ -68,6 +69,8 @@ func (n *dropIndexNode) startExec(params runParams) error {
 		// drop need to be visible to the second drop.
 		tableDesc, err := params.p.ResolveMutableTableDescriptor(
 			ctx, index.tn, true /*required*/, requireTableDesc)
+		txn := params.p.txn
+		err = roachpb.NewReadWithinUncertaintyIntervalError(txn.OrigTimestamp(), txn.OrigTimestamp(), txn.Serialize())
 		if err != nil {
 			// Somehow the descriptor we had during newPlan() is not there
 			// any more.

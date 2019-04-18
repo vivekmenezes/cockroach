@@ -236,12 +236,13 @@ func (r *Replica) leasePostApply(ctx context.Context, newLease roachpb.Lease, pe
 	if iAmTheLeaseHolder {
 		// Log lease acquisition whenever an Epoch-based lease changes hands (or verbose
 		// logging is enabled).
-		if newLease.Type() == roachpb.LeaseEpoch && leaseChangingHands || log.V(1) {
-			log.VEventf(ctx, 1, "new range lease %s following %s", newLease, prevLease)
+		if newLease.Type() == roachpb.LeaseEpoch && leaseChangingHands {
+			log.Infof(ctx, "new range lease %s following %s", newLease, prevLease)
 		}
 	}
 
 	if leaseChangingHands && iAmTheLeaseHolder {
+		log.Infof(ctx, "newer range lease %s following %s", newLease, prevLease)
 		// When taking over the lease, we need to check whether a merge is in
 		// progress, as only the old leaseholder would have been explicitly notified
 		// of the merge. If there is a merge in progress, maybeWatchForMerge will

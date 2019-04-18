@@ -15,7 +15,9 @@
 package tscache
 
 import (
+	"context"
 	"fmt"
+	"github.com/cockroachdb/cockroach/pkg/util/log"
 	"time"
 
 	"github.com/cockroachdb/cockroach/pkg/roachpb"
@@ -133,6 +135,7 @@ func ratchetValue(old, new cacheValue) (cacheValue, bool) {
 		// old.ts == new.ts but the values have different txnIDs. Remove the
 		// transaction ID from the value so that it is no longer owned by any
 		// transaction.
+		log.Infof(context.TODO(), "returning no txnid")
 		new.txnID = noTxnID
 		return new, old.txnID != noTxnID
 	}

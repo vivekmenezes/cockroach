@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"runtime"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -444,6 +445,10 @@ func (s *intervalSkl) rotatePages(filledPage *sklPage) {
 	// the maximum timestamp for all values it contains, but also for all values
 	// any earlier pages contain.
 	s.pushNewPage(fp.maxWallTime, oldArena)
+
+	var buf [2 << 10]byte
+	stk := string(buf[:runtime.Stack(buf[:], false)])
+	log.Infof(context.TODO(), "rotate pages time = %d\n%s", fp.maxWallTime, stk)
 
 	// Update metrics.
 	s.metrics.Pages.Update(int64(s.pages.Len()))

@@ -76,7 +76,7 @@ type EvalContext interface {
 	// for the provided transaction information. See Replica.CanCreateTxnRecord
 	// for details about its arguments, return values, and preconditions.
 	CanCreateTxnRecord(
-		txnID uuid.UUID, txnKey []byte, txnMinTSUpperBound hlc.Timestamp,
+		txnID uuid.UUID, txnKey []byte, txnMinTSUpperBound hlc.Timestamp, max hlc.Timestamp,
 	) (ok bool, minCommitTS hlc.Timestamp, reason roachpb.TransactionAbortedReason)
 
 	// GetMVCCStats returns a snapshot of the MVCC stats for the range.

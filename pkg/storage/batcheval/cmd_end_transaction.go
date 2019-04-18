@@ -177,6 +177,7 @@ func evalEndTransaction(
 	); err != nil {
 		return result.Result{}, err
 	} else if !ok {
+		log.Infof(ctx, "txn record not found")
 		// No existing transaction record was found - create one by writing it
 		// below in updateTxnWithExternalIntents.
 		reply.Txn = h.Txn.Clone()

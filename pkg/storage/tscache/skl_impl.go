@@ -16,6 +16,7 @@ package tscache
 
 import (
 	"context"
+	"runtime"
 
 	"github.com/cockroachdb/cockroach/pkg/roachpb"
 	"github.com/cockroachdb/cockroach/pkg/util/hlc"
@@ -91,6 +92,9 @@ func (tc *sklImpl) Add(start, end roachpb.Key, ts hlc.Timestamp, txnID uuid.UUID
 func (tc *sklImpl) SetLowWater(start, end roachpb.Key, ts hlc.Timestamp) {
 	tc.Add(start, end, ts, noTxnID, false /* readCache */)
 	tc.Add(start, end, ts, noTxnID, true /* readCache */)
+	var buf [2 << 10]byte
+	stk := string(buf[:runtime.Stack(buf[:], false)])
+	log.Infof(context.TODO(), "set tscache low water, range [%s, %s) , ts %s\n%s", start, end, ts, stk)
 }
 
 // getLowWater implements the Cache interface.

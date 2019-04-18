@@ -100,7 +100,7 @@ func CanCreateTxnRecord(rec EvalContext, txn *roachpb.Transaction) error {
 	// timestamp. The transaction could not have written a transaction record
 	// previously with a timestamp below this.
 	epochZeroOrigTS, _ := txn.InclusiveTimeBounds()
-	ok, minTS, reason := rec.CanCreateTxnRecord(txn.ID, txn.Key, epochZeroOrigTS)
+	ok, minTS, reason := rec.CanCreateTxnRecord(txn.ID, txn.Key, epochZeroOrigTS, txn.MaxTimestamp)
 	if !ok {
 		return roachpb.NewTransactionAbortedError(reason)
 	}
@@ -139,7 +139,7 @@ func SynthesizeTxnFromMeta(rec EvalContext, txn enginepb.TxnMeta) roachpb.Transa
 	// where we don't discover that a transaction is uncommittable, but never
 	// false negatives where we think that a transaction is uncommittable even
 	// when it's not and could later complete.
-	ok, minTS, _ := rec.CanCreateTxnRecord(txn.ID, txn.Key, txn.Timestamp)
+	ok, minTS, _ := rec.CanCreateTxnRecord(txn.ID, txn.Key, txn.Timestamp, txn.Timestamp)
 	if ok {
 		// Forward the provisional commit timestamp by the minimum timestamp that
 		// the transaction would be able to create a transaction record at.

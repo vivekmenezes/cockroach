@@ -16,7 +16,6 @@ package pgerror
 
 import (
 	"fmt"
-
 	"github.com/cockroachdb/cockroach/pkg/util/log"
 )
 
